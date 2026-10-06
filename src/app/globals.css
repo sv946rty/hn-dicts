@@ -1,0 +1,167 @@
+@import "tailwindcss";
+
+/* Hán/Nôm faces: subsets of the fonts the 2026 edition uses (scripts/build-fonts.py).
+   Nom Na Tong is primary; BabelStone Han only covers what Nom Na Tong lacks. */
+@font-face {
+  font-family: "Nom Na Tong";
+  src: url("/fonts/nom-na-tong-subset.woff2") format("woff2");
+  font-display: swap;
+}
+@font-face {
+  font-family: "BabelStone Han";
+  src: url("/fonts/babelstone-han-subset.woff2") format("woff2");
+  font-display: swap;
+}
+
+/* ------------------------------------------------------------------------
+   Platform tokens: neutral, shared by every dictionary.
+   ------------------------------------------------------------------------ */
+:root {
+  --bg: #faf9f7;
+  --surface: #ffffff;
+  --ink: #1f1c18;
+  --ink-2: #4b463f;
+  --ink-3: #78726a;
+  --rule: #e6e2da;
+  --rule-strong: #d3cdc2;
+  --accent: #34495e;
+  --accent-ink: #ffffff;
+  --accent-soft: #e9edf1;
+  --han: #3b3833;
+  --mark: #f3e6b6;
+  --focus: #3c6e9f;
+  color-scheme: light;
+}
+
+/* Dictionary identity: Đại Nam Quấc Âm Tự Vị — warm paper, brown ink for Hán/Nôm,
+   headwords and rules, as in the 2026 edition. Scoped so another dictionary
+   can bring its own palette without touching the platform. */
+[data-dict="dnqatv"] {
+  --bg: #f7f2e8;
+  --surface: #fcf9f3;
+  --ink: #2a221b;
+  --ink-2: #54483c;
+  --ink-3: #85786a;
+  --rule: #e4d8c4;
+  --rule-strong: #cdb99a;
+  --accent: #7a4a2b;
+  --accent-ink: #fffaf2;
+  --accent-soft: #efe3cf;
+  --han: #7a4a2b;
+  --mark: #f0dca6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #151412;
+    --surface: #1c1b18;
+    --ink: #ece7df;
+    --ink-2: #c4bdb2;
+    --ink-3: #8f887d;
+    --rule: #2f2c27;
+    --rule-strong: #45413a;
+    --accent: #9fb4c8;
+    --accent-ink: #151412;
+    --accent-soft: #252a30;
+    --han: #ddd6cb;
+    --mark: #5a4a1f;
+    --focus: #8fb5dc;
+    color-scheme: dark;
+  }
+  [data-dict="dnqatv"] {
+    --bg: #1a1713;
+    --surface: #211d18;
+    --ink: #efe6d8;
+    --ink-2: #cbbda9;
+    --ink-3: #978a78;
+    --rule: #352e26;
+    --rule-strong: #4d4236;
+    --accent: #d7a87f;
+    --accent-ink: #1a1713;
+    --accent-soft: #2e261e;
+    --han: #dcae84;
+    --mark: #5b4520;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-han: var(--han);
+  --color-mark: var(--mark);
+  --font-ui: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --font-text: "Noto Serif", Georgia, serif;
+  --font-han: "Nom Na Tong", "BabelStone Han", "Noto Serif CJK TC", "Noto Serif TC", "Songti TC", serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+}
+
+@layer utilities {
+  .font-han {
+    font-family: var(--font-han);
+    font-feature-settings: normal;
+  }
+}
+
+mark {
+  background: var(--mark);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Subentry anchor target: a brief, quiet highlight when arriving from search. */
+.sub-row:target {
+  animation: target-fade 2.4s ease-out;
+}
+@keyframes target-fade {
+  from {
+    background: var(--mark);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Entry "print form" toggle: both forms are in the HTML; CSS picks one. */
+[data-print="1"] .form-modern,
+[data-print="0"] .form-print {
+  display: none;
+}
