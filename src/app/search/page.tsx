@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { searchAll } from "@/lib/data/search";
+import { lookupWords, searchAll } from "@/lib/data/search";
 import { SearchBox } from "@/platform/components/SearchBox";
 import { SearchResults } from "@/platform/components/SearchResults";
-import { DICTIONARIES, routes } from "@/platform/registry";
+import { WordStrip } from "@/platform/components/WordStrip";
+import { DICTIONARIES, availableDictionaries, routes } from "@/platform/registry";
 import { T } from "@/platform/strings";
 
 export const metadata: Metadata = { title: "Tra mọi từ điển" };
@@ -24,6 +25,11 @@ export default async function SearchAllPage({ searchParams }: PageProps<"/search
           <SearchBox dict={null} autoFocus={!q} />
         </Suspense>
       </div>
+      {q ? (
+        <div data-dict={availableDictionaries()[0]?.theme}>
+          <WordStrip words={availableDictionaries().flatMap((d) => lookupWords(d.slug, q)).map((w) => ({ ...w, href: routes.searchAll(w.word) }))} />
+        </div>
+      ) : null}
       <div className="mt-6 space-y-12">
         {results.map((r) => (
           <SearchResults key={r.dict} result={r} showDictionary more={() => routes.search(r.dict, q)} />

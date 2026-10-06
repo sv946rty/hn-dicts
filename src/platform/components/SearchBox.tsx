@@ -4,8 +4,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { routes } from "@/platform/registry";
 import { T } from "@/platform/strings";
-import type { Hit } from "@/lib/data/search";
+import type { Hit, WordLookup } from "@/lib/data/search";
 import { HanGlyph, Highlight } from "./Han";
+import { WordChip } from "./WordStrip";
 
 /**
  * Type-ahead search. Enter opens the full results page; arrow keys move through
@@ -17,6 +18,9 @@ export function SearchBox({ dict, compact = false, autoFocus = false }: { dict: 
   const params = useSearchParams();
   const [q, setQ] = useState(() => params.get("q") ?? "");
   const [hits, setHits] = useState<Hit[]>([]);
+  // Multi-word queries: each word can be looked up on its own; focus -1 is the whole phrase.
+  const [words, setWords] = useState<WordLookup[]>([]);
+  const [focus, setFocus] = useState(-1);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const input = useRef<HTMLInputElement>(null);
@@ -42,8 +46,10 @@ export function SearchBox({ dict, compact = false, autoFocus = false }: { dict: 
     const t = setTimeout(() => {
       fetch(`/api/search?dict=${encodeURIComponent(dict ?? "")}&q=${encodeURIComponent(query)}&limit=8`, { signal: ctl.signal })
         .then((r) => r.json())
-        .then((r: { hits: Hit[] }) => {
+        .then((r: { hits: Hit[]; words?: WordLookup[] }) => {
           setHits(r.hits);
+          setWords(r.words ?? []);
+          setFocus(-1);
           setActive(-1);
         })
         .catch(() => {});
@@ -54,7 +60,13 @@ export function SearchBox({ dict, compact = false, autoFocus = false }: { dict: 
     };
   }, [q, dict]);
 
-  const shown = q.trim() ? hits : [];
+  const query = q.trim();
+  const shown = query ? (focus >= 0 ? (words[focus]?.hits ?? []) : hits) : [];
+  const shownWords = query ? words : [];
+  const pick = (i: number) => {
+    setFocus(i);
+    setActive(-1);
+  };
   const go = (href: string) => {
     setOpen(false);
     input.current?.blur();
@@ -118,7 +130,7 @@ export function SearchBox({ dict, compact = false, autoFocus = false }: { dict: 
             spellCheck={false}
             enterKeyHint="search"
             role="combobox"
-            aria-expanded={open && shown.length > 0}
+            aria-expanded={open && (shown.length > 0 || shownWords.length > 0)}
             aria-controls={listId}
             aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
             className={`min-w-0 flex-1 bg-transparent font-text text-ink outline-none placeholder:text-ink-3 ${compact ? "text-[15px]" : "text-lg sm:text-xl"}`}
@@ -134,8 +146,22 @@ export function SearchBox({ dict, compact = false, autoFocus = false }: { dict: 
           ) : null}
         </div>
       </form>
-      {open && shown.length > 0 ? (
+      {open && (shown.length > 0 || shownWords.length > 0) ? (
         <ul id={listId} role="listbox" className="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-[70vh] overflow-auto rounded-lg border border-rule bg-surface py-1 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
+          {shownWords.length ? (
+            <li className="sticky top-0 z-10 -mt-1 flex flex-wrap items-center gap-1.5 border-b border-rule bg-surface px-3 py-2" onMouseDown={(e) => e.preventDefault()}>
+              <span className="mr-0.5 text-[12px] text-ink-3">Tra:</span>
+              <WordChip label="cả cụm" on={focus < 0} onPick={() => pick(-1)} />
+              {shownWords.map((w, i) => (
+                <WordChip key={w.word} label={w.word} on={focus === i} onPick={() => pick(i)} />
+              ))}
+            </li>
+          ) : null}
+          {!shown.length ? (
+            <li className="px-3 py-3 text-[13.5px] text-ink-3">
+              {focus < 0 ? `Không có kết quả cho cả cụm “${query}”. Chọn từng chữ ở trên.` : `Không có mục từ “${shownWords[focus]?.word}”.`}
+            </li>
+          ) : null}
           {shown.map((h, i) => (
             <li
               key={`${h.entry.id}-${h.sub?.n ?? 0}-${h.field}`}
@@ -169,9 +195,20 @@ export function SearchBox({ dict, compact = false, autoFocus = false }: { dict: 
             </li>
           ))}
           <li className="border-t border-rule px-3 py-2 text-[13px] text-ink-3">
-            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={submit} className="hover:text-ink">
-              Xem mọi kết quả cho “{q.trim()}” ↵
-            </button>
+            {focus < 0 ? (
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={submit} className="hover:text-ink">
+                Xem mọi kết quả cho “{query}” ↵
+              </button>
+            ) : (
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => go(dict ? routes.search(dict, shownWords[focus].word) : routes.searchAll(shownWords[focus].word))}
+                className="hover:text-ink"
+              >
+                Tra riêng “{shownWords[focus]?.word}” →
+              </button>
+            )}
           </li>
         </ul>
       ) : null}

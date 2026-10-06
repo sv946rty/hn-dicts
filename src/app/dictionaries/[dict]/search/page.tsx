@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { searchDictionary } from "@/lib/data/search";
+import { lookupWords, searchDictionary } from "@/lib/data/search";
 import { SearchBox } from "@/platform/components/SearchBox";
 import { SearchResults } from "@/platform/components/SearchResults";
+import { WordStrip } from "@/platform/components/WordStrip";
 import { getDictionaryDescriptor, routes } from "@/platform/registry";
 import { T } from "@/platform/strings";
 
@@ -58,6 +59,7 @@ export default async function SearchPage({ params, searchParams }: Props) {
           </p>
         ) : null}
       </div>
+      {q ? <WordStrip words={lookupWords(dict, q).map((w) => ({ ...w, href: routes.search(dict, w.word) }))} /> : null}
       {show ? (
         <p className="mt-3 text-[13px]">
           <Link href={routes.search(dict, q)} className="text-accent hover:underline">

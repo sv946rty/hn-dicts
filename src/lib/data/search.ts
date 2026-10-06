@@ -1,6 +1,6 @@
 import "server-only";
 import { availableDictionaries } from "@/platform/registry";
-import { fold, hasHan, lowerNfc } from "@/platform/text";
+import { fold, hasHan, isHanChar, lowerNfc } from "@/platform/text";
 import { getEntries, plain, summarize } from "./dictionaries";
 import type { Entry, EntrySummary } from "./types";
 
@@ -211,4 +211,46 @@ export function searchAll(query: string, limit = 10): SearchResult[] {
 export function suggest(dict: string, query: string, limit = 8): Hit[] {
   const r = searchDictionary(dict, query, limit);
   return [...r.headwords, ...r.subentries, ...r.definitions].slice(0, limit);
+}
+
+/** One word of a multi-word query, looked up as a headword on its own. */
+export type WordLookup = { word: string; total: number; hits: Hit[] };
+
+/** Words of a query; Hán/Nôm is split per character. Fewer than two words means no per-word lookup. */
+export function queryWords(q: string): string[] {
+  const out: string[] = [];
+  for (const part of q.normalize("NFC").trim().split(/\s+/)) {
+    if (!part) continue;
+    if (hasHan(part)) {
+      for (const ch of part) if (isHanChar(ch)) out.push(ch);
+    } else out.push(part);
+  }
+  return [...new Set(out)];
+}
+
+/** Headwords spelled like `word`: exact marks first, then the same letters with other marks. */
+export function lookupWord(dict: string, word: string, limit = 12): WordLookup {
+  const all: Hit[] = [];
+  if (hasHan(word)) {
+    for (const x of index(dict)) {
+      const t = x.e.han.text;
+      if (t && t.includes(word)) all.push({ dict, entry: summarize(dict, x.e), field: "han", text: t, ranges: hanRanges(t, word), score: t === word ? 2 : 1 });
+    }
+  } else {
+    const wf = fold(word);
+    const wl = lowerNfc(word);
+    const marked = wf !== wl;
+    for (const x of index(dict)) {
+      if (x.hwFold !== wf) continue;
+      const exact = x.hwLower === wl;
+      all.push({ dict, entry: summarize(dict, x.e), field: "headword", text: x.e.headword, ranges: [[0, x.e.headword.length]], score: exact ? 2 : 1, approx: marked && !exact });
+    }
+  }
+  all.sort((a, b) => b.score - a.score);
+  return { word, total: all.length, hits: all.slice(0, limit) };
+}
+
+export function lookupWords(dict: string, q: string, limit = 12): WordLookup[] {
+  const words = queryWords(q);
+  return words.length < 2 ? [] : words.map((w) => lookupWord(dict, w, limit));
 }
